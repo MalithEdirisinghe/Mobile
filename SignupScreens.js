@@ -22,7 +22,6 @@ import { ref, uploadBytes, getStorage } from "firebase/storage";
 import * as ImagePicker from "expo-image-picker";
 import Constants from "expo-constants";
 import "firebase/storage";
-import { Base_url } from "./common/baseUrl";
 
 export default function SignupScreen({ navigation }) {
   const [email, setEmail] = useState("");

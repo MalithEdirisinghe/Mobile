@@ -13,7 +13,6 @@ import { auth } from "./firebase";
 import { scheduleNotificationAsync } from "expo-notifications";
 import SocketIOClient from "socket.io-client";
 import axios from "axios";
-import { Base_url } from "./common/baseUrl";
 
 const NotificationScreen = () => {
   const [notifications, setNotifications] = useState([]);
@@ -91,17 +90,17 @@ const NotificationScreen = () => {
   });
 
   useEffect(() => {
-    fetchNotifications();
     socket.on("connect", () => {
-      console.log("Connected to server");
+      fetchNotifications();
+      console.log("Connected to server on NotificationScreen.js");
     });
 
     socket.on("disconnect", () => {
-      console.log("Disconnected from server");
+      console.log("Disconnected from server on NotificationScreen.js");
     });
 
     socket.on("getLocation", (data) => {
-      console.log("Incoming data", data);
+      console.log("Incoming data on NotificationScreen.js", data);
     });
 
     return () => {

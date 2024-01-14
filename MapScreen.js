@@ -14,7 +14,6 @@ import * as Location from "expo-location";
 import { auth, db } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-import { Base_url } from "./common/baseUrl";
 
 const MapScreen = () => {
   const [location, setLocation] = useState(null);
