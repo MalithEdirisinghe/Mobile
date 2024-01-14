@@ -21,6 +21,36 @@ const NotificationScreen = () => {
   );
   const [lastResponseTime, setLastResponseTime] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [socket, setSocket] = useState(null);
+
+  const initializeSocket = useCallback(() => {
+    const newSocket = SocketIOClient("wss://kids-app.adaptable.app", {
+      reconnection: true,
+      reconnectionAttempts: 5,
+    });
+
+    newSocket.on("connect", () => {
+      console.log("Connected to server on NotificationScreen.js");
+      setSocket(newSocket);
+      fetchNotifications();
+    });
+
+    newSocket.on("disconnect", () => {
+      console.log("Disconnected from server on NotificationScreen.js");
+    });
+
+    newSocket.on("getLocation", (data) => {
+      console.log("Incoming data on NotificationScreen.js", data);
+    });
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    initializeSocket();
+  }, [initializeSocket]);
 
   const falseReport = useCallback(
     async (sharedId) => {
@@ -60,16 +90,12 @@ const NotificationScreen = () => {
                 }
               } catch (error) {
                 console.error("Error during API call:", error.message);
-                // Handle the error accordingly
               } finally {
-                setLoading(false); // Set loading to false when the request completes (success or error)
-                // You can perform additional actions after the API call if needed
-                // ...
+                setLoading(false);
                 Alert.alert(
                   "False Report Submitted",
                   "Thank you for reporting. We will review the case."
                 );
-                // You may want to refresh the notifications after a false report
                 fetchNotifications(userId);
                 socket.on("getLocation", (data) => {
                   console.log("Incoming data", data);
@@ -84,60 +110,37 @@ const NotificationScreen = () => {
     [userId, fetchNotifications]
   );
 
-  const socket = SocketIOClient("wss://kids-app.adaptable.app", {
-    reconnection: true,
-    reconnectionAttempts: 5,
-  });
-
-  useEffect(() => {
-    socket.on("connect", () => {
-      fetchNotifications();
-      console.log("Connected to server on NotificationScreen.js");
-    });
-
-    socket.on("disconnect", () => {
-      console.log("Disconnected from server on NotificationScreen.js");
-    });
-
-    socket.on("getLocation", (data) => {
-      console.log("Incoming data on NotificationScreen.js", data);
-    });
-
-    return () => {
-      // Cleanup when component unmounts
-      socket.disconnect();
-    };
-  }, []);
-
   const sendRequestID = (ID) => {
     socket.emit("getLocation", ID);
   };
 
-  const fetchNotifications = () => {
-    const data = { requestID: userId };
-    sendRequestID(data);
+  const fetchNotifications = useCallback(() => {
+    if (socket) {
+      const data = { requestID: userId };
+      socket.emit("getLocation", data);
 
-    socket.on("getLocation", (data) => {
-      const latestNotifications = data.slice(-9);
-      setNotifications(latestNotifications);
-      const latestNotification =
-        latestNotifications.length > 0
-          ? latestNotifications[latestNotifications.length - 1]
-          : null;
+      socket.on("getLocation", (data) => {
+        const latestNotifications = data.slice(-9);
+        setNotifications(latestNotifications);
+        const latestNotification =
+          latestNotifications.length > 0
+            ? latestNotifications[latestNotifications.length - 1]
+            : null;
 
-      if (
-        latestNotification &&
-        latestNotification.locationStartTime !== lastResponseTime &&
-        userId !== lastResponseTime
-      ) {
-        showPushNotification(
-          `New notification: ${latestNotification.sharedUsername}`
-        );
-        setLastResponseTime(latestNotification.locationStartTime);
-        setUserId(userId);
-      }
-    });
-  };
+        if (
+          latestNotification &&
+          latestNotification.locationStartTime !== lastResponseTime &&
+          userId !== lastResponseTime
+        ) {
+          showPushNotification(
+            `New notification: ${latestNotification.sharedUsername}`
+          );
+          setLastResponseTime(latestNotification.locationStartTime);
+          setUserId(userId);
+        }
+      });
+    }
+  }, [socket, userId, lastResponseTime, setNotifications, setLastResponseTime]);
 
   const showPushNotification = async (message) => {
     await scheduleNotificationAsync({
@@ -149,27 +152,22 @@ const NotificationScreen = () => {
     });
   };
 
+  useEffect(() => {
+    if (userId) {
+      fetchNotifications(); // Initial fetch
+
+      const interval = setInterval(() => {
+        fetchNotifications(); // Fetch every 3 seconds
+      }, 3000);
+
+      return () => clearInterval(interval);
+    }
+  }, [userId, fetchNotifications]);
+
   const openGoogleMaps = (latitude, longitude) => {
     const mapUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
     Linking.openURL(mapUrl);
   };
-
-  useEffect(() => {
-    if (userId) {
-      // Fetch notifications when the component mounts
-      fetchNotifications(userId);
-    }
-
-    // Use an interval to fetch notifications every 3 seconds
-    const interval = setInterval(() => {
-      if (userId) {
-        fetchNotifications(userId);
-      }
-    }, 5000);
-
-    // Clear the interval when the component unmounts
-    return () => clearInterval(interval);
-  }, [userId, lastResponseTime, sendRequestID]);
 
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
