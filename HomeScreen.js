@@ -107,7 +107,7 @@ const HomeScreen = ({ navigation }) => {
           .then((location) => {
             if (location) {
               const { latitude, longitude } = location.coords;
-              console.log("Before", user);
+
               sendLocationToAPI(
                 user.uid,
                 user.displayName,
@@ -117,7 +117,7 @@ const HomeScreen = ({ navigation }) => {
             }
           })
           .catch((error) => {
-            console.error("Error fetching user location:", error);
+            console.log("Error fetching user location:", error);
           });
       }, 5000); //5sec
 
