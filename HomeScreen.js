@@ -18,6 +18,23 @@ import { BackHandler } from "react-native";
 import * as Location from "expo-location";
 import SocketIOClient from "socket.io-client";
 
+const socket = SocketIOClient("wss://kids-app.adaptable.app", {
+  reconnection: true,
+  reconnectionAttempts: 5,
+});
+
+const sendLocationToAPI = (userId, username, latitude, longitude) => {
+  const requestData = {
+    userId: userId,
+    userUsername: username,
+    userLat: latitude.toString(),
+    userLong: longitude.toString(),
+  };
+
+  socket.emit("sendLocation", requestData);
+  console.log("Location data emitted successfully.");
+};
+
 const SupportDetailsModal = ({ isVisible, onClose }) => {
   return (
     <Modal
@@ -64,6 +81,53 @@ const HomeScreen = ({ navigation }) => {
   const [isSocketConnected, setIsSocketConnected] = useState(false);
 
   useEffect(() => {
+    socket.on("connect", () => {
+      setIsSocketConnected(true);
+    });
+
+    socket.on("sendLocation", (data) => {});
+
+    return () => {
+      if (isSocketConnected) {
+        socket.disconnect();
+      }
+    };
+  }, [isSocketConnected]);
+
+  useEffect(() => {
+    const user = getAuth().currentUser;
+
+    if (user) {
+      const locationUpdateInterval = setInterval(() => {
+        const LOCATION_TASK_NAME = "background-location-task";
+
+        Location.getLastKnownPositionAsync({
+          accuracy: Location.Accuracy.BestForNavigation,
+        })
+          .then((location) => {
+            if (location) {
+              const { latitude, longitude } = location.coords;
+              console.log("Before", user);
+              sendLocationToAPI(
+                user.uid,
+                user.displayName,
+                latitude,
+                longitude
+              );
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching user location:", error);
+          });
+      }, 5000); //5sec
+
+      return () => clearInterval(locationUpdateInterval);
+    } else {
+      console.warn("User not authenticated");
+    }
+  }, [isSocketConnected]);
+
+  useEffect(() => {
     const LOCATION_TASK_NAME = "background-location-task";
 
     Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
@@ -99,14 +163,10 @@ const HomeScreen = ({ navigation }) => {
 
           if (docSnapshot.exists()) {
             setVolunteerId(docSnapshot.data().volunteerID);
-          } else {
-            console.warn("Volunteer ID not found in Firestore for the user.");
           }
 
           if (docSnapshot.exists()) {
             setName(docSnapshot.data().name);
-          } else {
-            console.warn("Name not found in Firestore for the user.");
           }
         } catch (error) {
           console.error("Error fetching user document:", error);
@@ -132,74 +192,6 @@ const HomeScreen = ({ navigation }) => {
       Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
     };
   }, [navigation]);
-
-  const socket = SocketIOClient("wss://kids-app.adaptable.app", {
-    reconnection: true,
-    reconnectionAttempts: 5,
-  });
-
-  const sendLocationToAPI = (userId, username, latitude, longitude) => {
-    const requestData = {
-      userId: userId,
-      userUsername: username,
-      userLat: latitude.toString(),
-      userLong: longitude.toString(),
-    };
-    socket.emit("sendLocation", requestData);
-    console.log("Location data emitted successfully.");
-  };
-
-  if (isSocketConnected == false) {
-    socket.on("connect", () => {
-      console.log("Connected to server");
-      setIsSocketConnected(true);
-    });
-    socket.on("sendLocation", (data) => {
-      console.log("Incoming data", data);
-    });
-  }
-
-  useEffect(() => {
-    return () => {
-      if (socket) {
-        socket.disconnect();
-      }
-    };
-  }, [isSocketConnected]);
-
-  useEffect(() => {
-    const locationUpdateInterval = setInterval(() => {
-      const LOCATION_TASK_NAME = "background-location-task";
-
-      Location.getLastKnownPositionAsync({
-        accuracy: Location.Accuracy.BestForNavigation,
-      })
-        .then((location) => {
-          if (location) {
-            const { latitude, longitude } = location.coords;
-            const user = getAuth().currentUser;
-
-            if (user) {
-              sendLocationToAPI(
-                user.uid,
-                user.displayName,
-                latitude,
-                longitude
-              );
-            } else {
-              console.warn("User is not logged in");
-            }
-          }
-        })
-        .catch((error) => {
-          console.error("Error fetching user location:", error);
-        });
-    }, 5000);
-
-    return () => {
-      clearInterval(locationUpdateInterval);
-    };
-  }, []);
 
   const handleButtonPress = () => {
     navigation.navigate("Report");
@@ -261,14 +253,10 @@ const HomeScreen = ({ navigation }) => {
 
             if (docSnapshot.exists()) {
               setVolunteerId(docSnapshot.data().volunteerID);
-            } else {
-              console.warn("Volunteer ID not found in Firestore for the user.");
             }
 
             if (docSnapshot.exists()) {
               setName(docSnapshot.data().name);
-            } else {
-              console.warn("Name not found in Firestore for the user.");
             }
           } catch (error) {
             console.error("Error fetching user document:", error);
