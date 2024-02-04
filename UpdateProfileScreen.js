@@ -10,6 +10,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   ToastAndroid,
+  TouchableWithoutFeedback
 } from "react-native";
 import { getAuth, updateProfile as updateEmail } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -203,12 +204,12 @@ const UpdateProfileScreen = () => {
           />
         )}
 
-        <TouchableOpacity onPress={handleImageUpload}>
+        <TouchableWithoutFeedback onPress={handleImageUpload}>
           <Image
             source={require("./assets/camVector.png")}
             style={styles.camera}
           />
-        </TouchableOpacity>
+        </TouchableWithoutFeedback>
         <Text style={styles.texts}>Email:</Text>
         <TextInput
           style={styles.input}
