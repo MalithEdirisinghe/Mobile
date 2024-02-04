@@ -81,53 +81,6 @@ const HomeScreen = ({ navigation }) => {
   const [isSocketConnected, setIsSocketConnected] = useState(false);
 
   useEffect(() => {
-    socket.on("connect", () => {
-      setIsSocketConnected(true);
-    });
-
-    socket.on("sendLocation", (data) => { });
-
-    return () => {
-      if (isSocketConnected) {
-        socket.disconnect();
-      }
-    };
-  }, [isSocketConnected]);
-
-  useEffect(() => {
-    const user = getAuth().currentUser;
-
-    if (user) {
-      const locationUpdateInterval = setInterval(() => {
-        const LOCATION_TASK_NAME = "background-location-task";
-
-        Location.getLastKnownPositionAsync({
-          accuracy: Location.Accuracy.BestForNavigation,
-        })
-          .then((location) => {
-            if (location) {
-              const { latitude, longitude } = location.coords;
-
-              sendLocationToAPI(
-                user.uid,
-                user.displayName,
-                latitude,
-                longitude
-              );
-            }
-          })
-          .catch((error) => {
-            console.log("Error fetching user location:", error);
-          });
-      }, 5000); //5sec
-
-      return () => clearInterval(locationUpdateInterval);
-    } else {
-      console.warn("User not authenticated");
-    }
-  }, [isSocketConnected]);
-
-  useEffect(() => {
     const LOCATION_TASK_NAME = "background-location-task";
 
     Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
